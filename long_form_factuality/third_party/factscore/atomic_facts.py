@@ -252,7 +252,6 @@ class AtomicFactGenerator(object):
       for prompt in prompts:
         if self.other_lm is not None:
           prompt_to_send = ATOMIC_FACT_INSTRUCTION + prompt  # add instructions
-          print("We made it here")
           output = self.other_lm.generate(prompt_to_send, temperature=0)
         else:
           raise ValueError('other_lm is None')
