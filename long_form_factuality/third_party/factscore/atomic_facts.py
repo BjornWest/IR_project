@@ -76,6 +76,7 @@ class AtomicFactGenerator(object):
       demon_dir: Optional[str] = DEMON_DIR,
       gpt3_cache_file: Optional[str] = None,
       other_lm: Optional[modeling.Model] = None,
+      loop: asyncio.AbstractEventLoop = None,
   ):
     self.nlp = SPACY_MODEL
     self.is_bio = True
