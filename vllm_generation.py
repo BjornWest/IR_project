@@ -1,20 +1,24 @@
 import json
 import os
+
+# Set these BEFORE importing vLLM
+os.environ["VLLM_ATTENTION_BACKEND"] = "XFORMERS"
+os.environ["VLLM_USE_V1"] = "0"  # Force legacy engine for better multi-GPU support
+
 from vllm import LLM, SamplingParams
-
-
 
 path = os.path.abspath(os.path.join(os.path.dirname(__file__)))
 
 local_model_path = "/vol/csedu-nobackup/course/I00041_informationretrieval/users/bjorn/Qwen2.5-7B"
 
-queries = json.load(
-    open(os.path.join(path, "data/queries.factscore_bio.jsonl"), "r", encoding="utf-8")
-)
+with open(os.path.join(path, "../factscore_bio.jsonl"), "r", encoding="utf-8") as f:
+    queries = [json.loads(line) for line in f]
+
 queries = [query["prompt"] for query in queries]
-retrieved_texts = json.load(
-    open(os.path.join(path, "data/retrieved.jsonl"), "r", encoding="utf-8")
-)
+retrieved_texts = queries
+# retrieved_texts = json.load(
+#     open(os.path.join(path, "data/retrieved.jsonl"), "r", encoding="utf-8")
+# )
 
 
 system_prompt = """
@@ -35,8 +39,11 @@ llm = LLM(
     model=model,
     download_dir=local_model_path,
     enable_prefix_caching=True,
-    max_num_batched_tokens=16384,
-    max_num_seqs=32,
+    max_num_batched_tokens=8192,     
+    max_num_seqs=8,                    
+    gpu_memory_utilization=0.90,       
+    tensor_parallel_size=2,
+    # quantization="awq",            
 )
 
 # number of responses to generate
