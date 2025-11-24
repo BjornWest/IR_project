@@ -2,10 +2,14 @@ import os
 import json
 from pyserini.search.lucene import LuceneSearcher
 from huggingface_hub import snapshot_download
+import pickle
+import tqdm  # pip install tqdm
 
 class BM25Retriever:
     _instance = None
     _searcher = None
+    _wiki_download_dir = None
+    _offset_map = None
 
     def __new__(cls):
         """Singleton pattern to ensure we only load the index once."""
@@ -13,6 +17,39 @@ class BM25Retriever:
             cls._instance = super(BM25Retriever, cls).__new__(cls)
             cls._instance._initialize_index()
         return cls._instance
+
+
+    def _build_index_offset(self, jsonl_path, index_path):
+        offset_map = {}
+
+        print("Building offset index...")
+        with open(jsonl_path, "rb") as f:
+            # Get the initial position
+            offset = f.tell()
+            for line in tqdm.tqdm(f):
+                # We only parse the ID to save time/memory
+                # Assuming the structure is {"id": "...", "contents": "..."}
+                try:
+                    # fast parse: decode just enough to find the ID if possible, 
+                    # or parse the whole line if the structure is complex.
+                    doc = json.loads(line)
+                    doc_id = doc.get("id") # Ensure this matches your json key
+                    
+                    if doc_id:
+                        offset_map[doc_id] = offset
+                except Exception:
+                    pass
+                
+                # Update offset for the NEXT line
+                offset = f.tell()
+        # Save the map to disk
+        with open(index_path, "wb") as f:
+            pickle.dump(offset_map, f)
+
+        print(f"Index built! Mapped {len(offset_map)} documents.")
+
+
+
 
     def _initialize_index(self):
         print("Initializing BM25 Index... (This might take a moment)")
@@ -40,32 +77,39 @@ class BM25Retriever:
             print("Failed to load Lucene index. Do you have Java 11+ installed?")
             raise e
         print("BM25 Index loaded successfully.")
-
+        self._wiki_download_dir = os.path.join(os.getcwd(), "wiki_dump")
+        # check if corresponding text documents have been downloaded
+        if not os.path.exists(self._wiki_download_dir):
+            os.makedirs(self._wiki_download_dir)
+            print("Wiki dump not found. Downloading...")
+            snapshot_download(
+                repo_id="HeydarS/enwiki_20251001",
+                repo_type="dataset",
+                local_dir=self._wiki_download_dir,
+                local_dir_use_symlinks=False
+            )
+            index_path = os.path.join(self._wiki_download_dir, "enwiki_offsets.pkl")
+            self._build_index_offset(os.path.join(self._wiki_download_dir, "enwiki_20251001.jsonl"), index_path)
+        self._offset_map = pickle.load(open(os.path.join(self._wiki_download_dir, "enwiki_offsets.pkl"), "rb"))
     def search(self, query: str, k: int = 5) -> str:
         """
         Searches the index and returns a formatted string of results.
         """
-        try:
-            hits = self._searcher.search(query, k=k)
-            
-            formatted_results = []
-            
-            for i, hit in enumerate(hits):
-                # Lucene stores the original text in a JSON string inside 'raw'
-                # We must extract it to give the LLM readable text.
-                content = ""
-                raw_json = json.loads(hit.raw)
-                # Try common field names for text content
-                content = raw_json.get('contents') or raw_json.get('text') or raw_json.get('body') or "No text content found."
+        hits = self._searcher.search(query, k=k)
+        for hit in hits:
+            print(hit.docid, hit.score)
 
-                result_str = f"Result {i+1} (Score: {hit.score:.2f}):\n{content}"
-                formatted_results.append(result_str)
 
-            return "\n\n".join(formatted_results)
-
-        except Exception as e:
-            print(f"Search failed: {e}")
-            return ""
+        for i, hit in enumerate(hits):
+            print(i)
+            offset = self._offset_map[hit.docid]
+            with open(os.path.join(self._wiki_download_dir, "enwiki_20251001.jsonl"), "rb") as f:
+                f.seek(offset)
+                line = f.readline()
+                content = json.loads(line)['contents']
+                print(content)
+        result_str = f"Result {i+1} (Score: {hit.score:.2f}):\n{content}"
+        return result_str
 
 # Global instance for easy import
 bm25_engine = BM25Retriever()
