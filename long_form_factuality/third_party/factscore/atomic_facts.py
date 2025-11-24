@@ -76,7 +76,6 @@ class AtomicFactGenerator(object):
       demon_dir: Optional[str] = DEMON_DIR,
       gpt3_cache_file: Optional[str] = None,
       other_lm: Optional[modeling.Model] = None,
-      loop: asyncio.AbstractEventLoop = None,
   ):
     self.nlp = SPACY_MODEL
     self.is_bio = True
@@ -253,7 +252,7 @@ class AtomicFactGenerator(object):
       for prompt in prompts:
         if self.other_lm is not None:
           prompt_to_send = ATOMIC_FACT_INSTRUCTION + prompt  # add instructions
-          output = self.other_lm.generate(prompt_to_send, temperature=0)
+          output = self.other_lm.generate(prompt_to_send)
         else:
           raise ValueError('other_lm is None')
 

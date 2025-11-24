@@ -16,7 +16,7 @@
 import contextlib
 from typing import Any, ContextManager, Optional
 
-import langfun as lf
+# import langfun as lf  # Commented out - not needed for atomic facts
 
 # pylint: disable=g-bad-import-order
 from common import utils
@@ -41,11 +41,5 @@ def get_lf_context(
   def dummy_context_manager():
     yield None
 
-  if temp is not None and max_tokens is not None:
-    return lf.use_settings(temperature=temp, max_tokens=max_tokens)
-  elif temp is not None:
-    return lf.use_settings(temperature=temp)
-  elif max_tokens is not None:
-    return lf.use_settings(max_tokens=max_tokens)
-  else:
-    return dummy_context_manager()
+  # Langfun not needed for atomic facts - just return dummy context
+  return dummy_context_manager()

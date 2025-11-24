@@ -34,9 +34,9 @@ def convert_atomic_facts_to_dicts(
   ]
 
 
-def main(response: str, model: modeling.Model, loop: asyncio.AbstractEventLoop = None) -> dict[str, Any]:
+def main(response: str, model: modeling.Model) -> dict[str, Any]:
   atomic_fact_generator = atomic_facts.AtomicFactGenerator(
-      api_key='', gpt3_cache_file='', other_lm=model, loop=loop
+      api_key='', gpt3_cache_file='', other_lm=model
   )
   facts, _ = atomic_fact_generator.run(response)
   facts_as_dict = convert_atomic_facts_to_dicts(facts)
