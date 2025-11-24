@@ -124,7 +124,7 @@ def maybe_get_next_search(
     full_prompt = _NEXT_SEARCH_FORMAT.replace(_STATEMENT_PLACEHOLDER, atomic_fact)
     full_prompt = full_prompt.replace(_KNOWLEDGE_PLACEHOLDER, knowledge)
     full_prompt = utils.strip_string(full_prompt)
-    model_response = model.generate(full_prompt, do_debug=debug)
+    model_response = model.generate(full_prompt)
     query = utils.extract_first_code_block(model_response, ignore_language=True)
 
     if model_response and query:
@@ -146,7 +146,7 @@ def maybe_get_final_answer(
     )
     full_prompt = full_prompt.replace(_KNOWLEDGE_PLACEHOLDER, knowledge)
     full_prompt = utils.strip_string(full_prompt)
-    model_response = model.generate(full_prompt, do_debug=debug)
+    model_response = model.generate(full_prompt)
     answer = utils.extract_first_square_brackets(model_response)
     answer = re.sub(r'[^\w\s]', '', answer).strip()
 

@@ -54,12 +54,9 @@ class BM25Retriever:
                 # Lucene stores the original text in a JSON string inside 'raw'
                 # We must extract it to give the LLM readable text.
                 content = ""
-                try:
-                    raw_json = json.loads(hit.raw)
-                    # Try common field names for text content
-                    content = raw_json.get('contents') or raw_json.get('text') or raw_json.get('body') or "No text content found."
-                except:
-                    content = "Error decoding document text."
+                raw_json = json.loads(hit.raw)
+                # Try common field names for text content
+                content = raw_json.get('contents') or raw_json.get('text') or raw_json.get('body') or "No text content found."
 
                 result_str = f"Result {i+1} (Score: {hit.score:.2f}):\n{content}"
                 formatted_results.append(result_str)

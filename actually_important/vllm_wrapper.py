@@ -50,7 +50,7 @@ import json
 class AtomicFacts(BaseModel):
     atomic_facts: List[str]
 
-class SimpleLLMWrapper:
+class VLLMAtomizationModel:
     """Simple thread-safe wrapper for vLLM's synchronous LLM class."""
     
     def __init__(self):
@@ -91,6 +91,41 @@ class SimpleLLMWrapper:
                 fact_string = "- " + fact_string
             as_string += fact_string
         return as_string
+
+
+class VLLMRaterModel:
+    """Simple thread-safe wrapper for vLLM's synchronous LLM class."""
+    
+    def __init__(self):
+        """
+        Args:
+            llm_engine: vLLM LLM instance (synchronous)
+        """
+        self.lock = __import__('threading').Lock()
+
+    def generate(self, prompt: str) -> str:
+        client = OpenAI(
+            base_url="http://localhost:8000/v1",
+            api_key="EMPTY"
+        )
+        outputs = client.completions.create(
+            model="openai/gpt-oss-20b",
+            # prompt=system_prompt + prompt + "\n NOTE: you have a maximum of 200 tokens to answer",
+            prompt=prompt,
+            temperature=0.0,
+            max_tokens=1024,
+            presence_penalty=1.0,
+        )
+        # structured_output = client.chat.completions.create(
+        #     model="openai/gpt-oss-20b",
+        #     messages=[
+        #         {"role": "system", "content": "You are a helpful assistant that rates atomic facts."},
+        #         {"role": "user", "content": prompt}
+        #     ],
+        #     # extra_body={
+        #     #     "guided_json": AtomicFacts.model_json_schema() },
+        # )
+        return outputs.choices[0].text
 
 
 # Keep the old class for backwards compatibility but mark it as deprecated
@@ -137,7 +172,7 @@ class VLLMQwenModel:
         return future.result()
 
 
-def get_atomic_facts(response: str, model: SimpleLLMWrapper):
+def get_atomic_facts(response: str, model: VLLMAtomizationModel):
     """
     Wrapper for get_atomic_facts that matches the original SAFE implementation exactly.
     
