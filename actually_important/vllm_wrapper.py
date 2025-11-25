@@ -62,7 +62,7 @@ class VLLMAtomizationModel:
     
     def generate(self, prompt: str) -> str:
         client = OpenAI(
-            base_url="http://localhost:8000/v1",
+            base_url="http://localhost:80/v1",
             api_key="EMPTY"
         )
         structured_output = client.chat.completions.create(

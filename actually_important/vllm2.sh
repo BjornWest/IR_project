@@ -4,4 +4,4 @@ vllm serve openai/gpt-oss-20b \
     --host 127.0.0.1 \
     --max-num-seqs 256 \
     --enable-chunked-prefill \
-    --port 8000
+    --port 8001

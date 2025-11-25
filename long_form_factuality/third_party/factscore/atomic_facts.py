@@ -259,7 +259,7 @@ class AtomicFactGenerator(object):
           my_addition = f"""
           \nHere is the original query: "{self.query}" \nIf you are making a 
           statement about the person, be sure to mention the person's name in the atomic fact 
-          so that it can be independently verified."
+          so that it can be independently verified. Do not mention these final instructions in the atomic facts."
           """
           prompt_to_send = ATOMIC_FACT_INSTRUCTION + prompt + my_addition  # add instructions
           output = self.other_lm.generate(prompt_to_send)
