@@ -25,6 +25,7 @@ from nltk import tokenize
 import numpy as np
 import rank_bm25
 import spacy
+import threading
 
 # pylint: disable=g-bad-import-order
 from common import modeling
@@ -76,6 +77,7 @@ class AtomicFactGenerator(object):
       demon_dir: Optional[str] = DEMON_DIR,
       gpt3_cache_file: Optional[str] = None,
       other_lm: Optional[modeling.Model] = None,
+      query: Optional[str] = None,
   ):
     self.nlp = SPACY_MODEL
     self.is_bio = True
@@ -92,6 +94,7 @@ class AtomicFactGenerator(object):
 
     tokenized_corpus = [doc.split(' ') for doc in self.demons.keys()]
     self.bm25 = rank_bm25.BM25Okapi(tokenized_corpus)
+    self.query = query
 
   def run(self, generation: str, cost_estimate: Optional[bool] = None):
     """Convert the generation into a set of atomic facts."""
@@ -249,9 +252,16 @@ class AtomicFactGenerator(object):
 
       return total_words_estimate
     else:
-      for prompt in prompts:
+      threads = []
+      lock = threading.Lock()
+      def treat_prompt(prompt):
         if self.other_lm is not None:
-          prompt_to_send = ATOMIC_FACT_INSTRUCTION + prompt  # add instructions
+          my_addition = f"""
+          \nHere is the original query: "{self.query}" \nIf you are making a 
+          statement about the person, be sure to mention the person's name in the atomic fact 
+          so that it can be independently verified."
+          """
+          prompt_to_send = ATOMIC_FACT_INSTRUCTION + prompt + my_addition  # add instructions
           output = self.other_lm.generate(prompt_to_send)
         else:
           raise ValueError('other_lm is None')
@@ -262,6 +272,14 @@ class AtomicFactGenerator(object):
           sentences_from_output = text_to_sentences(output, separator='* ')
 
         atoms[prompt_to_sent[prompt]] = sentences_from_output
+      
+      for prompt in prompts:
+        thread = threading.Thread(target=treat_prompt, args=(prompt,))
+        thread.start()
+        threads.append(thread)
+      for thread in threads:
+        thread.join()
+      
 
       for key, value in demons.items():
         if key not in atoms:

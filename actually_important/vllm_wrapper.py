@@ -74,16 +74,10 @@ class VLLMAtomizationModel:
             extra_body={
                 "guided_json": AtomicFacts.model_json_schema() },
         )
-        print(prompt.split("Please breakdown the following sentence into independent facts:")[-1])
-        print(structured_output.choices[0].message.content)
-        # outputs = client.completions.create(
-        #     model="btbtyler09/Qwen3-30B-A3B-gptq-8bit",
-        #     # prompt=system_prompt + prompt + "\n NOTE: you have a maximum of 200 tokens to answer",
-        #     prompt=prompt,
-        #     temperature=0.0,
-        #     max_tokens=1024,
-        #     presence_penalty=1.0,
-        # )
+        # print(prompt.split("Please breakdown the following sentence into independent facts:")[-1].split("Here is the original query:")[0])
+        # print(prompt)
+        # print(structured_output.choices[0])
+        # print(structured_output.choices[0].message.content)
         as_string = ""
         for fact in json.loads(structured_output.choices[0].message.content)["atomic_facts"]:
             fact_string = fact+"\n"
