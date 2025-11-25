@@ -21,11 +21,9 @@ import threading
 import time
 from typing import Any, Annotated, Optional, TYPE_CHECKING
 
-import anthropic
 if TYPE_CHECKING:
     import langfun as lf
 import openai
-import pyglove as pg
 
 # pylint: disable=g-bad-import-order
 from common import modeling_utils
@@ -237,7 +235,7 @@ class Model:
                         openai.error.OpenAIError,
                         futures.TimeoutError,
                         lf.core.concurrent.RetryError,
-                        anthropic.AnthropicError,
+                        # anthropic.AnthropicError,
                     ) as e:
                         utils.maybe_print_error(e)
                         time.sleep(retry_interval)

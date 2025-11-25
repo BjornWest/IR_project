@@ -19,7 +19,7 @@ import re
 import string
 from typing import Optional
 
-from absl import app
+# from absl import app
 import nltk
 from nltk import tokenize
 import numpy as np

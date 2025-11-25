@@ -23,7 +23,6 @@ import string
 import types
 from typing import Any
 
-import termcolor
 
 
 ################################################################################
@@ -202,7 +201,7 @@ def print_divider() -> None:
 
 def print_color(message: str, color: str) -> None:
   """Prints a message with a color."""
-  termcolor.cprint(message, color)
+  # termcolor.cprint(message, color)
 
 
 def print_step_errors(step_name: str, success_rate: float) -> None:
@@ -256,7 +255,7 @@ def print_progress(sentence: str, progress: int, out_of: int) -> None:
     empty = ' ' * (num_remaining - num_fill)
     sentence = f'{sentence}[{fill}{empty}]'
 
-  print(termcolor.colored(sentence, 'green'), end='\r')
+  # print(termcolor.colored(sentence, 'green'), end='\r')
 
   if progress == out_of:
     print()
