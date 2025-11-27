@@ -103,7 +103,7 @@ class VLLMRaterModel:
             api_key="EMPTY"
         )
         outputs = client.completions.create(
-            model="openai/gpt-oss-20b",
+            model="openai/gpt-oss-120b",
             # prompt=system_prompt + prompt + "\n NOTE: you have a maximum of 200 tokens to answer",
             prompt=prompt,
             temperature=0.0,
