@@ -106,7 +106,7 @@ class AtomicFactGenerator(object):
         paragraphs, cost_estimate=cost_estimate
     )
 
-  def get_atomic_facts_from_paragraph(self, paragraphs, cost_estimate=None):
+  def get_atomic_facts_from_paragraph(self, paragraphs, cost_estimate=None, just_sentences=False):
     """Get the atomic facts from the paragraphs."""
     sentences, para_breaks = [], []
 
@@ -126,7 +126,8 @@ class AtomicFactGenerator(object):
           curr_sentences_2,
       )
       sentences += curr_sentences
-
+    if just_sentences:
+      return sentences
     atoms_or_estimate = self.get_init_atomic_facts_from_sentence(
         [
             sent
