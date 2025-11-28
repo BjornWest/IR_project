@@ -99,11 +99,11 @@ class VLLMRaterModel:
 
     def generate(self, prompt: str) -> str:
         client = OpenAI(
-            base_url="http://localhost:8000/v1",
+            base_url="http://localhost:80/v1",
             api_key="EMPTY"
         )
         outputs = client.completions.create(
-            model="openai/gpt-oss-120b",
+            model="openai/gpt-oss-20b",
             # prompt=system_prompt + prompt + "\n NOTE: you have a maximum of 200 tokens to answer",
             prompt=prompt,
             temperature=0.0,
