@@ -24,17 +24,22 @@ NOT_SUPPORTED_LABEL = 'Not Supported'
 
 _STATEMENT_PLACEHOLDER = '[STATEMENT]'
 _KNOWLEDGE_PLACEHOLDER = '[KNOWLEDGE]'
+_ORIGINAL_TOPIC_PLACEHOLDER = '[ORIGINAL_TOPIC]'
 _NEXT_SEARCH_FORMAT = f"""\
 Instructions:
 1. You have been given a STATEMENT and some KNOWLEDGE points.
 2. Your goal is to try to find evidence that either supports or does not \
 support the factual accuracy of the given STATEMENT.
-3. To do this, you are allowed to issue ONE Google Search query that you think \
-will allow you to find additional useful evidence.
+3. To do this, you are allowed to issue ONE semantic search query to an indexation of \
+all Wikipedia articles that you think will allow you to find additional useful evidence.
 4. Your query should aim to obtain new information that does not appear in the \
-KNOWLEDGE. This new information should be useful for determining the factual \
-accuracy of the given STATEMENT.
-5. Format your final query by putting it in a markdown code block.
+KNOWLEDGE. If you have previous search results, look at the previous queries you \
+have made and try to construct a new query that is meaningfully different from the \
+previous queries.
+5. Format your final query by putting it in a markdown code block. 
+6. The STATEMENT was gathered from a text about "{_ORIGINAL_TOPIC_PLACEHOLDER}" which \
+could thus be a useful query.
+7. Make sure to think through the problem step by step before issuing your query.
 
 KNOWLEDGE:
 {_KNOWLEDGE_PLACEHOLDER}
@@ -114,6 +119,7 @@ def call_search(
 
 def maybe_get_next_search(
     atomic_fact: str,
+    original_topic: str,
     past_searches: list[GoogleSearchResult],
     model: modeling.Model,
     debug: bool = safe_config.debug_safe,
@@ -123,6 +129,7 @@ def maybe_get_next_search(
     knowledge = 'N/A' if not knowledge else knowledge
     full_prompt = _NEXT_SEARCH_FORMAT.replace(_STATEMENT_PLACEHOLDER, atomic_fact)
     full_prompt = full_prompt.replace(_KNOWLEDGE_PLACEHOLDER, knowledge)
+    full_prompt = full_prompt.replace(_ORIGINAL_TOPIC_PLACEHOLDER, original_topic)
     full_prompt = utils.strip_string(full_prompt)
     model_response = model.generate(full_prompt)
     query = utils.extract_first_code_block(model_response, ignore_language=True)
@@ -158,6 +165,7 @@ def maybe_get_final_answer(
 
 def check_atomic_fact(
     atomic_fact: str,
+    original_topic: str,
     rater: modeling.Model,
     max_steps: int = safe_config.max_steps,
     max_retries: int = safe_config.max_retries,
@@ -170,7 +178,7 @@ def check_atomic_fact(
         next_search, num_tries = None, 0
 
         while not next_search and num_tries <= max_retries:
-            next_search = maybe_get_next_search(atomic_fact, search_results, rater)
+            next_search = maybe_get_next_search(atomic_fact, original_topic, search_results, rater)
             num_tries += 1
 
         if next_search is None:

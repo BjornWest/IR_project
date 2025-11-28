@@ -189,14 +189,22 @@ def save_buffer(buffer: io.BytesIO, filepath: str) -> None:
 ################################################################################
 #                                   PRINTING                                   #
 ################################################################################
+def _get_terminal_columns() -> int:
+  """Gets terminal width, with fallback for non-terminal environments (e.g., Jupyter)."""
+  try:
+    return os.get_terminal_size().columns
+  except (OSError, AttributeError):
+    # Default to 80 columns for non-terminal environments
+    return 80
+
 def clear_line() -> None:
   """Clears the current line."""
-  print(' ' * os.get_terminal_size().columns, end='\r')
+  print(' ' * _get_terminal_columns(), end='\r')
 
 
 def print_divider() -> None:
   """Prints a dividing line as wide as the terminal."""
-  print('-' * os.get_terminal_size().columns)
+  print('-' * _get_terminal_columns())
 
 
 def print_color(message: str, color: str) -> None:
@@ -246,7 +254,7 @@ def print_progress(sentence: str, progress: int, out_of: int) -> None:
     print()
 
   sentence += f': {progress}/{out_of} '
-  num_remaining = os.get_terminal_size().columns - len(sentence) - 2
+  num_remaining = _get_terminal_columns() - len(sentence) - 2
 
   if num_remaining >= 5:
     num_fill = int(float(progress / out_of) * num_remaining) or 1

@@ -10,11 +10,13 @@ class BM25Retriever:
     _searcher = None
     _wiki_download_dir = None
     _offset_map = None
+    _returned_docids = None  # Track which documents have already been returned
 
     def __new__(cls):
         """Singleton pattern to ensure we only load the index once."""
         if cls._instance is None:
             cls._instance = super(BM25Retriever, cls).__new__(cls)
+            cls._instance._returned_docids = set()  # Initialize the set
             cls._instance._initialize_index()
         return cls._instance
 
@@ -94,22 +96,50 @@ class BM25Retriever:
     def search(self, query: str, k: int = 5) -> str:
         """
         Searches the index and returns a formatted string of results.
+        Only returns documents that haven't been returned in previous searches.
         """
-        hits = self._searcher.search(query, k=k)
+        # Request more results than needed to account for filtering out already-returned docs
+        # Request k * 3 to ensure we have enough new results (adjust multiplier as needed)
+        max_hits = max(k * 3, 50)  # Request at least 50 results to have enough to filter from
+        hits = self._searcher.search(query, k=max_hits)
+
+        result_str = f"Searched for \"{query}\" and found the following results:\n"
+        new_results_count = 0
+        
         for hit in hits:
-            print(hit.docid, hit.score)
-
-
-        for i, hit in enumerate(hits):
-            print(i)
+            # Skip documents that have already been returned
+            if hit.docid in self._returned_docids:
+                continue
+            
+            # Mark this document as returned
+            self._returned_docids.add(hit.docid)
+            
+            # Get the document content
             offset = self._offset_map[hit.docid]
             with open(os.path.join(self._wiki_download_dir, "enwiki_20251001.jsonl"), "rb") as f:
                 f.seek(offset)
                 line = f.readline()
                 content = json.loads(line)['contents']
-                print(content)
-        result_str = f"Result {i+1} (Score: {hit.score:.2f}):\n{content}"
+            
+            result_str += f"\nResult {new_results_count + 1}:\n{content}\n"
+            new_results_count += 1
+            
+            # Stop once we have k new results
+            if new_results_count >= k:
+                break
+        
+        # If we couldn't find enough new results, return what we have
+        if new_results_count == 0:
+            return "No new documents found. All relevant documents have already been retrieved."
+        
         return result_str
+    
+    def reset_search_history(self):
+        """
+        Resets the tracking of returned documents.
+        Call this when starting a new query session.
+        """
+        self._returned_docids.clear()
 
 # Global instance for easy import
 bm25_engine = BM25Retriever()

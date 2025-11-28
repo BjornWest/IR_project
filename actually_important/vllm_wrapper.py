@@ -98,6 +98,7 @@ class VLLMRaterModel:
         self.lock = __import__('threading').Lock()
 
     def generate(self, prompt: str) -> str:
+        print("FULL PROMPT: ", prompt)
         client = OpenAI(
             base_url="http://localhost:80/v1",
             api_key="EMPTY"
@@ -119,6 +120,7 @@ class VLLMRaterModel:
         #     # extra_body={
         #     #     "guided_json": AtomicFacts.model_json_schema() },
         # )
+        print("\n\nOUTPUTS: ", outputs.choices[0].text)
         return outputs.choices[0].text
 
 
