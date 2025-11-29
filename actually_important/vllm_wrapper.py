@@ -97,31 +97,38 @@ class VLLMRaterModel:
         """
         self.lock = __import__('threading').Lock()
 
-    def generate(self, prompt: str) -> str:
+    def generate(self, prompt: str, response_format: BaseModel) -> str:
         print("FULL PROMPT: ", prompt)
         client = OpenAI(
             base_url="http://localhost:80/v1",
             api_key="EMPTY"
         )
-        outputs = client.completions.create(
-            model="openai/gpt-oss-20b",
-            # prompt=system_prompt + prompt + "\n NOTE: you have a maximum of 200 tokens to answer",
-            prompt=prompt,
-            temperature=0.0,
-            max_tokens=1024,
-            presence_penalty=1.0,
-        )
-        # structured_output = client.chat.completions.create(
+        # outputs = client.completions.create(
         #     model="openai/gpt-oss-20b",
-        #     messages=[
-        #         {"role": "system", "content": "You are a helpful assistant that rates atomic facts."},
-        #         {"role": "user", "content": prompt}
-        #     ],
-        #     # extra_body={
-        #     #     "guided_json": AtomicFacts.model_json_schema() },
+        #     # prompt=system_prompt + prompt + "\n NOTE: you have a maximum of 200 tokens to answer",
+        #     prompt=prompt,
+        #     temperature=0.0,
+        #     max_tokens=1024,
+        #     presence_penalty=1.0,
+        #     extra_body={
+        #         "guided_json": FinalAnswer.model_json_schema() },
+        #     stream=True,
         # )
-        print("\n\nOUTPUTS: ", outputs.choices[0].text)
-        return outputs.choices[0].text
+        structured_output = client.chat.completions.create(
+            model="openai/gpt-oss-20b",
+            messages=[
+                {"role": "system", "content": prompt},
+            ],
+            extra_body={
+                "guided_json": response_format.model_json_schema() },
+        )
+
+        # validate the output
+        final_answer = response_format.model_validate_json(structured_output.choices[0].message.content)
+        print("OUTPUT:")
+        for key in final_answer.model_fields.keys():
+            print(f"{key}: {getattr(final_answer, key, None)}")
+        return final_answer
 
 
 # Keep the old class for backwards compatibility but mark it as deprecated

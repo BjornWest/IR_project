@@ -18,6 +18,8 @@ from common import utils
 from eval.safe import config as safe_config
 # Removed: from eval.safe import query_serper (No longer needed)
 # pylint: enable=g-bad-import-order
+from pydantic import BaseModel
+from typing import Literal
 
 SUPPORTED_LABEL = 'Supported'
 NOT_SUPPORTED_LABEL = 'Not Supported'
@@ -36,10 +38,11 @@ all Wikipedia articles that you think will allow you to find additional useful e
 KNOWLEDGE. If you have previous search results, look at the previous queries you \
 have made and try to construct a new query that is meaningfully different from the \
 previous queries.
-5. Format your final query by putting it in a markdown code block. 
-6. The STATEMENT was gathered from a text about "{_ORIGINAL_TOPIC_PLACEHOLDER}" which \
-could thus be a useful query.
-7. Make sure to think through the problem step by step before issuing your query.
+5. You will provide your query in a JSON object with the following fields:
+   - reasoning: your full reasoning process for constructing the query
+   - query: the actual query to be issued
+6. The STATEMENT was gathered from a biography about "{_ORIGINAL_TOPIC_PLACEHOLDER}" I \
+would highly recommend using this in one of your queries.
 
 KNOWLEDGE:
 {_KNOWLEDGE_PLACEHOLDER}
@@ -117,6 +120,10 @@ def call_search(
     # -------------------------
 
 
+class SearchQueryFormat(BaseModel):
+    reasoning: str
+    query: str
+
 def maybe_get_next_search(
     atomic_fact: str,
     original_topic: str,
@@ -131,14 +138,18 @@ def maybe_get_next_search(
     full_prompt = full_prompt.replace(_KNOWLEDGE_PLACEHOLDER, knowledge)
     full_prompt = full_prompt.replace(_ORIGINAL_TOPIC_PLACEHOLDER, original_topic)
     full_prompt = utils.strip_string(full_prompt)
-    model_response = model.generate(full_prompt)
-    query = utils.extract_first_code_block(model_response, ignore_language=True)
+    model_response = model.generate(full_prompt, response_format=SearchQueryFormat)
+    query = model_response.query
+    # query = utils.extract_first_code_block(model_response, ignore_language=True)
 
     if model_response and query:
         return GoogleSearchResult(query=query, result=call_search(query))
 
     return None
 
+class FinalAnswerFormat(BaseModel):
+    reasoning: str
+    final_answer: Literal["Supported", "Not Supported"]
 
 def maybe_get_final_answer(
     atomic_fact: str,
@@ -153,12 +164,13 @@ def maybe_get_final_answer(
     )
     full_prompt = full_prompt.replace(_KNOWLEDGE_PLACEHOLDER, knowledge)
     full_prompt = utils.strip_string(full_prompt)
-    model_response = model.generate(full_prompt)
-    answer = utils.extract_first_square_brackets(model_response)
-    answer = re.sub(r'[^\w\s]', '', answer).strip()
+    model_response = model.generate(full_prompt, response_format=FinalAnswerFormat)
+    answer = model_response.final_answer
+    # answer = utils.extract_first_square_brackets(model_response)
+    # answer = re.sub(r'[^\w\s]', '', answer).strip()
 
     if model_response and answer in [SUPPORTED_LABEL, NOT_SUPPORTED_LABEL]:
-        return FinalAnswer(response=model_response, answer=answer)
+        return FinalAnswer(response=model_response.reasoning, answer=answer)
 
     return None
 
