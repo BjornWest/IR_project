@@ -18,7 +18,7 @@ from common import utils
 from eval.safe import config as safe_config
 # Removed: from eval.safe import query_serper (No longer needed)
 # pylint: enable=g-bad-import-order
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import Literal
 
 SUPPORTED_LABEL = 'Supported'
@@ -32,15 +32,15 @@ Instructions:
 1. You have been given a STATEMENT and some KNOWLEDGE points.
 2. Your goal is to try to find evidence that either supports or does not \
 support the factual accuracy of the given STATEMENT.
-3. To do this, you are allowed to issue ONE semantic search query to an indexation of \
-all Wikipedia articles that you think will allow you to find additional useful evidence.
+3. To do this, you are allowed to issue ONE Google search query that you think will \
+allow you to find additional useful evidence. \
 4. Your query should aim to obtain new information that does not appear in the \
 KNOWLEDGE. If you have previous search results, look at the previous queries you \
 have made and try to construct a new query that is meaningfully different from the \
 previous queries.
 5. You will provide your query in a JSON object with the following fields:
    - reasoning: your full reasoning process for constructing the query
-   - query: the actual query to be issued
+   - search_query: the actual query to be issued
 6. The STATEMENT was gathered from a biography about "{_ORIGINAL_TOPIC_PLACEHOLDER}" I \
 would highly recommend using this in one of your queries.
 
@@ -100,7 +100,6 @@ def call_search(
     if search_postamble:
         search_query += f' {search_postamble}'
 
-    print(f"Running BM25 Search for: {search_query}")
 
     # --- REPLACEMENT LOGIC ---
     # Instead of calling Serper, we call our local BM25 engine
@@ -121,8 +120,8 @@ def call_search(
 
 
 class SearchQueryFormat(BaseModel):
-    reasoning: str
-    query: str
+    reasoning: str = Field(description="Your full reasoning process for constructing the query")
+    search_query: str = Field(description="The actual query to be issued")
 
 def maybe_get_next_search(
     atomic_fact: str,
@@ -139,8 +138,7 @@ def maybe_get_next_search(
     full_prompt = full_prompt.replace(_ORIGINAL_TOPIC_PLACEHOLDER, original_topic)
     full_prompt = utils.strip_string(full_prompt)
     model_response = model.generate(full_prompt, response_format=SearchQueryFormat)
-    query = model_response.query
-    # query = utils.extract_first_code_block(model_response, ignore_language=True)
+    query = model_response.search_query
 
     if model_response and query:
         return GoogleSearchResult(query=query, result=call_search(query))
@@ -148,8 +146,8 @@ def maybe_get_next_search(
     return None
 
 class FinalAnswerFormat(BaseModel):
-    reasoning: str
-    final_answer: Literal["Supported", "Not Supported"]
+    reasoning: str = Field(description="Your full reasoning process for determining the final answer")
+    final_answer: Literal["Supported", "Not Supported"] = Field(description="The final answer to the question")
 
 def maybe_get_final_answer(
     atomic_fact: str,

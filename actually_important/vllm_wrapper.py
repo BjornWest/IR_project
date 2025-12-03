@@ -5,7 +5,8 @@ import sys
 import os
 import uuid
 from typing import List
-
+import httpx
+port = 8000
 # Monkey patch for langfun compatibility with newer openai
 import openai
 from openai import OpenAI
@@ -59,13 +60,15 @@ class VLLMAtomizationModel:
         Args:
             llm_engine: vLLM LLM instance (synchronous)
         """
+        self.client = OpenAI(
+            base_url="http://localhost:8000/v1",
+            api_key="EMPTY",
+            # Increase connection pool size for high concurrency
+            http_client=httpx.Client(limits=httpx.Limits(max_keepalive_connections=1000, max_connections=1000))
+        )
     
     def generate(self, prompt: str) -> str:
-        client = OpenAI(
-            base_url="http://localhost:80/v1",
-            api_key="EMPTY"
-        )
-        structured_output = client.chat.completions.create(
+        structured_output = self.client.chat.completions.create(
             model="openai/gpt-oss-20b",
             messages=[
                 {"role": "system", "content": "You are a helpful assistant that breaks down sentences into atomic facts and answers in a json format. IMPORTANT: Only put actual facts in here, if the sentance does not contain any facts, answer with an EMPTY list."},
@@ -74,10 +77,6 @@ class VLLMAtomizationModel:
             extra_body={
                 "guided_json": AtomicFacts.model_json_schema() },
         )
-        # print(prompt.split("Please breakdown the following sentence into independent facts:")[-1].split("Here is the original query:")[0])
-        # print(prompt)
-        # print(structured_output.choices[0])
-        # print(structured_output.choices[0].message.content)
         try:
             as_string = ""
             for fact in json.loads(structured_output.choices[0].message.content)["atomic_facts"]:
@@ -87,6 +86,7 @@ class VLLMAtomizationModel:
                 as_string += fact_string
             return as_string
         except Exception as e:
+            print(e)
             return ""
 
 
@@ -96,14 +96,17 @@ class VLLMRaterModel:
     def __init__(self):
         """
         """
+        self.client = OpenAI(
+            base_url=f"http://localhost:{port}/v1",
+            api_key="EMPTY",
+            # Increase connection pool size for high concurrency
+            http_client=httpx.Client(limits=httpx.Limits(max_keepalive_connections=1500, max_connections=1500))
+        )
 
     def generate(self, prompt: str, response_format: BaseModel, debug: bool = False) -> str:
         if debug:
             print("FULL PROMPT: ", prompt)
-        client = OpenAI(
-            base_url="http://localhost:80/v1",
-            api_key="EMPTY"
-        )
+        
         # outputs = client.completions.create(
         #     model="openai/gpt-oss-20b",
         #     # prompt=system_prompt + prompt + "\n NOTE: you have a maximum of 200 tokens to answer",
@@ -115,17 +118,23 @@ class VLLMRaterModel:
         #         "guided_json": FinalAnswer.model_json_schema() },
         #     stream=True,
         # )
-        structured_output = client.chat.completions.create(
+        structured_output = self.client.chat.completions.create(
             model="openai/gpt-oss-20b",
             messages=[
-                {"role": "system", "content": prompt},
+                {"role": "system", "content": "You are a helpful assistant that is either tasked with finding a good search query or deciding if a fact is supported or not. You will be given a prompt and a response format. Pay close attention to the response format and do not deviate from it."},
+                {"role": "user", "content": prompt}
             ],
             extra_body={
                 "guided_json": response_format.model_json_schema() },
         )
 
         # validate the output
-        final_answer = response_format.model_validate_json(structured_output.choices[0].message.content)
+        try:
+            final_answer = response_format.model_validate_json(structured_output.choices[0].message.content)
+        except Exception:
+            print("Error validating output: ", structured_output.choices[0].message.content)
+            print("Retrying...")
+            return self.generate(prompt, response_format)
         if debug:
             print("OUTPUT:")
             for key in final_answer.model_fields.keys():
