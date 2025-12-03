@@ -50,11 +50,7 @@ import json
 class AtomicFacts(BaseModel):
     atomic_facts: List[str]
 
-class EntailmentModel(BaseModel):
     
-
-
-
 class VLLMAtomizationModel:
     """Simple thread-safe wrapper for vLLM's synchronous LLM class."""
     
@@ -82,13 +78,16 @@ class VLLMAtomizationModel:
         # print(prompt)
         # print(structured_output.choices[0])
         # print(structured_output.choices[0].message.content)
-        as_string = ""
-        for fact in json.loads(structured_output.choices[0].message.content)["atomic_facts"]:
-            fact_string = fact+"\n"
-            if "- " not in fact_string:
-                fact_string = "- " + fact_string
-            as_string += fact_string
-        return as_string
+        try:
+            as_string = ""
+            for fact in json.loads(structured_output.choices[0].message.content)["atomic_facts"]:
+                fact_string = fact+"\n"
+                if "- " not in fact_string:
+                    fact_string = "- " + fact_string
+                as_string += fact_string
+            return as_string
+        except Exception as e:
+            return ""
 
 
 class VLLMRaterModel:
