@@ -1,6 +1,0 @@
-ipykernel
-openai
-nltk
-numpy
-rank-bm25
-spacy

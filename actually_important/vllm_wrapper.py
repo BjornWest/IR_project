@@ -50,6 +50,11 @@ import json
 class AtomicFacts(BaseModel):
     atomic_facts: List[str]
 
+class EntailmentModel(BaseModel):
+    
+
+
+
 class VLLMAtomizationModel:
     """Simple thread-safe wrapper for vLLM's synchronous LLM class."""
     
@@ -58,7 +63,6 @@ class VLLMAtomizationModel:
         Args:
             llm_engine: vLLM LLM instance (synchronous)
         """
-        self.lock = __import__('threading').Lock()
     
     def generate(self, prompt: str) -> str:
         client = OpenAI(
@@ -92,13 +96,11 @@ class VLLMRaterModel:
     
     def __init__(self):
         """
-        Args:
-            llm_engine: vLLM LLM instance (synchronous)
         """
-        self.lock = __import__('threading').Lock()
 
-    def generate(self, prompt: str, response_format: BaseModel) -> str:
-        print("FULL PROMPT: ", prompt)
+    def generate(self, prompt: str, response_format: BaseModel, debug: bool = False) -> str:
+        if debug:
+            print("FULL PROMPT: ", prompt)
         client = OpenAI(
             base_url="http://localhost:80/v1",
             api_key="EMPTY"
@@ -125,9 +127,10 @@ class VLLMRaterModel:
 
         # validate the output
         final_answer = response_format.model_validate_json(structured_output.choices[0].message.content)
-        print("OUTPUT:")
-        for key in final_answer.model_fields.keys():
-            print(f"{key}: {getattr(final_answer, key, None)}")
+        if debug:
+            print("OUTPUT:")
+            for key in final_answer.model_fields.keys():
+                print(f"{key}: {getattr(final_answer, key, None)}")
         return final_answer
 
 
