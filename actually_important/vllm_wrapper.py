@@ -6,6 +6,8 @@ import os
 import uuid
 from typing import List
 import httpx
+from time import sleep
+
 port = 8000
 # Monkey patch for langfun compatibility with newer openai
 import openai
@@ -96,44 +98,46 @@ class VLLMRaterModel:
     def __init__(self):
         """
         """
+        MAX_REQUEST_TIMEOUT = 1800  # 30 minutes
+        long_timeout = httpx.Timeout(
+            timeout=MAX_REQUEST_TIMEOUT,  # Total timeout for the entire request
+            connect=10.0,                # Connection establishment timeout (seconds)
+            read=MAX_REQUEST_TIMEOUT,    # Read/inactivity timeout (seconds)
+            write=10.0                   # Write timeout (seconds)
+        )
         self.client = OpenAI(
             base_url=f"http://localhost:{port}/v1",
             api_key="EMPTY",
             # Increase connection pool size for high concurrency
-            http_client=httpx.Client(limits=httpx.Limits(max_keepalive_connections=1500, max_connections=1500))
+            http_client=httpx.Client(
+                limits=httpx.Limits(max_keepalive_connections=1500, 
+                max_connections=1500),
+                timeout=long_timeout
+            )
         )
 
     def generate(self, prompt: str, response_format: BaseModel, debug: bool = False) -> str:
         if debug:
             print("FULL PROMPT: ", prompt)
-        
-        # outputs = client.completions.create(
-        #     model="openai/gpt-oss-20b",
-        #     # prompt=system_prompt + prompt + "\n NOTE: you have a maximum of 200 tokens to answer",
-        #     prompt=prompt,
-        #     temperature=0.0,
-        #     max_tokens=1024,
-        #     presence_penalty=1.0,
-        #     extra_body={
-        #         "guided_json": FinalAnswer.model_json_schema() },
-        #     stream=True,
-        # )
-        structured_output = self.client.chat.completions.create(
-            model="openai/gpt-oss-20b",
-            messages=[
-                {"role": "system", "content": "You are a helpful assistant that is either tasked with finding a good search query or deciding if a fact is supported or not. You will be given a prompt and a response format. Pay close attention to the response format and do not deviate from it."},
-                {"role": "user", "content": prompt}
-            ],
-            extra_body={
-                "guided_json": response_format.model_json_schema() },
-        )
-
+        try:
+            structured_output = self.client.chat.completions.create(
+                model="openai/gpt-oss-20b",
+                messages=[
+                    {"role": "system", "content": "You are a helpful assistant that is either tasked with finding a good search query or deciding if a fact is supported or not. You will be given a prompt and a response format. Pay close attention to the response format and do not deviate from it."},
+                    {"role": "user", "content": prompt}
+                ],
+                extra_body={
+                    "guided_json": response_format.model_json_schema() },
+            )
+        except Exception:
+            sleep(5)
+            return self.generate(prompt, response_format)
         # validate the output
         try:
             final_answer = response_format.model_validate_json(structured_output.choices[0].message.content)
         except Exception:
-            print("Error validating output: ", structured_output.choices[0].message.content)
-            print("Retrying...")
+            # print("Error validating output: ")
+            # print("Retrying...")
             return self.generate(prompt, response_format)
         if debug:
             print("OUTPUT:")
