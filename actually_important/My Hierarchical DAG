@@ -1,0 +1,14 @@
+// My Hierarchical DAG
+digraph {
+	graph [rankdir=TB]
+	A [label="Start Node"]
+	B [label="Intermediate 1"]
+	C [label="Intermediate 2"]
+	D [label="End Node"]
+	E [label="Final Output Node"]
+	A -> B
+	A -> C
+	B -> D
+	C -> D
+	D -> E
+}
