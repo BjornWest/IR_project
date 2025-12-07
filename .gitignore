@@ -1,4 +1,7 @@
 __pycache__/
 bm25_data/
-data/
+
+data/*
+!data/.gitkeep
+
 wiki_dump/
