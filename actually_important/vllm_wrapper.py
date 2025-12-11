@@ -126,10 +126,18 @@ class VLLMRaterModel:
                     {"role": "system", "content": "You are a helpful assistant that is either tasked with finding a good search query or deciding if a fact is supported or not. You will be given a prompt and a response format. Pay close attention to the response format and do not deviate from it."},
                     {"role": "user", "content": prompt}
                 ],
-                extra_body={
-                    "guided_json": response_format.model_json_schema() },
+                # extra_body={
+                #     "guided_json": response_format.model_json_schema() },
+                response_format={
+                    "type": "json_schema",
+                    "json_schema": {
+                        "name": "Response",
+                        "schema": response_format.model_json_schema()
+                    }
+                }
             )
-        except Exception:
+        except Exception as e:
+            print("Error generating output, retrying...", e)
             sleep(5)
             return self.generate(prompt, response_format)
         # validate the output
